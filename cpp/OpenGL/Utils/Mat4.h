@@ -4,7 +4,10 @@
 #include <string>
 #include <array>
 
+#include "Vec4.h"
 #include "Vec3.h"
+
+struct StereoMatrices;
 
 class Mat4 {
 public:
@@ -26,8 +29,8 @@ public:
   }
 
 
-  operator float*(void) {return e.data();}
-  operator const float*(void) const  {return e.data();}
+  operator float*(void);
+  operator const float*(void) const;
 
 
   Mat4 operator * ( float scalar ) const;
@@ -37,7 +40,9 @@ public:
 
   Mat4 operator * ( const Mat4& other ) const;
   Vec3 operator * ( const Vec3& other ) const;
+  Vec4 operator * ( const Vec4& other ) const;
   
+  static Mat4 scaling(float scale);
   static Mat4 scaling(const Vec3& scale);
   static Mat4 translation(const Vec3& trans);
   static Mat4 translation(float x, float y, float z);
@@ -47,16 +52,31 @@ public:
   static Mat4 rotationZ(float degree);
   static Mat4 rotationAxis(const Vec3& axis, float angle);
   static Mat4 transpose(const Mat4& m);
+  
+  static float det(const Mat4& m);
+  static Mat4 inverse(const Mat4& m, float det);
   static Mat4 inverse(const Mat4& m);
   
   static Mat4 perspective(float fovy, float aspect, float znear, float zfar);
+  static Mat4 perspective(float left, float right, float bottom, float top, float znear, float zfar);
   static Mat4 ortho(float left, float right, float bottom, float top, float znear, float zfar );
   static Mat4 lookAt(const Vec3& vEye, const Vec3& vAt, const Vec3& vUp);
   static Mat4 mirror(const Vec3& p, const Vec3& n);
   
+  static StereoMatrices stereoLookAtAndProjection(const Vec3& vEye, const Vec3& vAt, const Vec3& vUp,
+                                           float fovy, float aspect, float znear, float zfar, float focalLength,
+                                           float eyeDist);
+
 private:
   std::array<float, 16> e;
   
   static float deg2Rad(const float d);
   
+};
+
+struct StereoMatrices {
+  Mat4 leftView;
+  Mat4 rightView;
+  Mat4 leftProj;
+  Mat4 rightProj;
 };

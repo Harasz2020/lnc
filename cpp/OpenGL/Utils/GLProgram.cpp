@@ -3,6 +3,21 @@
 #include <iostream>
 
 #include "GLProgram.h"
+#include "GLDebug.h"
+
+GLProgram::GLProgram(const GLProgram& other) :
+  GLProgram(other.vertexShaderStrings, other.fragmentShaderStrings, other.geometryShaderStrings)
+{
+}
+
+GLProgram& GLProgram::operator=(const GLProgram& other) {
+  GL(glDeleteShader(glVertexShader));
+  GL(glDeleteShader(glFragmentShader));
+  GL(glDeleteShader(glGeometryShader));
+  GL(glDeleteProgram(glProgram));
+  programFromVectors(other.vertexShaderStrings, other.fragmentShaderStrings, other.geometryShaderStrings);
+  return *this;
+}
 
 GLuint GLProgram::createShader(GLenum type, const GLchar** src, GLsizei count) {
 	if (count==0) return 0;
@@ -12,42 +27,36 @@ GLuint GLProgram::createShader(GLenum type, const GLchar** src, GLsizei count) {
 	return s;
 }
 
-GLProgram::GLProgram(const GLchar** vertexShaderTexts, GLsizei vsCount, const GLchar** framentShaderTexts, GLsizei fsCount, const GLchar** geometryShaderTexts, GLsizei gsCount) :
-	glVertexShader(0),
-	glFragmentShader(0),
-	glGeometryShader(0),
-	glProgram(0)
+GLProgram::GLProgram(std::vector<std::string> vertexShaderStrings, std::vector<std::string> fragmentShaderStrings, std::vector<std::string> geometryShaderStrings):
+  glVertexShader(0),
+  glFragmentShader(0),
+  glGeometryShader(0),
+  glProgram(0),
+  vertexShaderStrings(vertexShaderStrings),
+  fragmentShaderStrings(fragmentShaderStrings),
+  geometryShaderStrings(geometryShaderStrings)
 {
-	
-	glVertexShader = createShader(GL_VERTEX_SHADER, vertexShaderTexts, vsCount);
-	glFragmentShader = createShader(GL_FRAGMENT_SHADER, framentShaderTexts, fsCount);
-	glGeometryShader = createShader(GL_GEOMETRY_SHADER, geometryShaderTexts, gsCount);
-	
-
-	glProgram = glCreateProgram(); checkAndThrow();
-	if (glVertexShader) glAttachShader(glProgram, glVertexShader); checkAndThrow();
-	if (glFragmentShader) glAttachShader(glProgram, glFragmentShader); checkAndThrow();
-	if (glGeometryShader) glAttachShader(glProgram, glGeometryShader); checkAndThrow();
-	glLinkProgram(glProgram); checkAndThrowProgram(glProgram);
+  programFromVectors(vertexShaderStrings, fragmentShaderStrings, geometryShaderStrings);
 }
 
 GLProgram::~GLProgram() {
-	glDeleteShader(glVertexShader);
-	glDeleteShader(glFragmentShader);
-	glDeleteProgram(glProgram);
+	GL(glDeleteShader(glVertexShader));
+	GL(glDeleteShader(glFragmentShader));
+  GL(glDeleteShader(glGeometryShader));
+	GL(glDeleteProgram(glProgram));
 }
 
 GLProgram GLProgram::createFromFiles(const std::vector<std::string>& vs, const std::vector<std::string>& fs, const std::vector<std::string>& gs) {
 	std::vector<std::string> vsTexts;
-	for (const std::string f : vs) {
+	for (const std::string& f : vs) {
 		vsTexts.push_back(loadFile(f));
 	}
 	std::vector<std::string> fsTexts;
-	for (const std::string f : fs) {
+	for (const std::string& f : fs) {
 		fsTexts.push_back(loadFile(f));
 	}
 	std::vector<std::string> gsTexts;
-	for (const std::string f : gs) {
+	for (const std::string& f : gs) {
 		if (!f.empty())		
 			gsTexts.push_back(loadFile(f));
 	}
@@ -55,21 +64,7 @@ GLProgram GLProgram::createFromFiles(const std::vector<std::string>& vs, const s
 }
 
 GLProgram GLProgram::createFromStrings(const std::vector<std::string>& vs, const std::vector<std::string>& fs, const std::vector<std::string>& gs) {
-	std::vector<const GLchar*> vertexShaderTexts;
-	for (const std::string& s : vs)
-		vertexShaderTexts.push_back(s.c_str());
-
-	std::vector<const GLchar*> framentShaderTexts;
-	for (const std::string& s : fs)
-		framentShaderTexts.push_back(s.c_str());
-		
-	std::vector<const GLchar*> geometryShaderTexts;
-	for (const std::string& s : gs)
-		if (!s.empty())
-			geometryShaderTexts.push_back(s.c_str());
-
-	
-	return {vertexShaderTexts.data(), GLsizei(vertexShaderTexts.size()), framentShaderTexts.data(), GLsizei(framentShaderTexts.size()), geometryShaderTexts.data(), GLsizei(geometryShaderTexts.size())};
+	return {vs,fs,gs};
 }
 
 GLProgram GLProgram::createFromFile(const std::string& vs, const std::string& fs, const std::string& gs) {
@@ -110,51 +105,82 @@ GLint GLProgram::getUniformLocation(const std::string& id) const {
 }
 
 void GLProgram::enable() const {
-	glUseProgram(glProgram);
+	GL(glUseProgram(glProgram));
 }
 
 void GLProgram::disable() const {
-	glUseProgram(0);
+	GL(glUseProgram(0));
 }
 
 void GLProgram::setUniform(GLint id, float value) const {
-	glUniform1f(id, value);	
+	GL(glUniform1f(id, value));
 }
 
 void GLProgram::setUniform(GLint id, const Vec2& value) const {
-    glUniform2fv(id, 1, value);
+  GL(glUniform2fv(id, 1, value));
 }
 
 void GLProgram::setUniform(GLint id, const Vec3& value) const {
-	glUniform3fv(id, 1, value);	
+	GL(glUniform3fv(id, 1, value));
 }
 
 void GLProgram::setUniform(GLint id, const Vec4& value) const {
-    glUniform4fv(id, 1, value);
+  GL(glUniform4fv(id, 1, value));
 }
 
+void GLProgram::setUniform(GLint id, int value) const {
+  GL(glUniform1i(id, value));
+}
+
+void GLProgram::setUniform(GLint id, const Vec2i& value) const {
+  GL(glUniform2iv(id, 1, value));
+}
 
 void GLProgram::setUniform(GLint id, const Mat4& value, bool transpose) const {
-	glUniformMatrix4fv(id, 1, transpose, value);
-}
-
-void GLProgram::setTexture(GLint id, const GLTexture2D& texture, GLuint unit) const {
-	glActiveTexture(GL_TEXTURE0 + unit);
-	glBindTexture(GL_TEXTURE_2D, texture.getId());
-	glUniform1i(id, unit);
+	// since OpenGL matrices are usuall expcted
+  // column major but our matrices are row major
+  // hence, we invert the transposition flag
+  GL(glUniformMatrix4fv(id, 1, !transpose, value));
 }
 
 void GLProgram::setTexture(GLint id, const GLTexture1D& texture, GLuint unit) const {
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_1D, texture.getId());
-    glUniform1i(id, unit);
+  GL(glActiveTexture(GL_TEXTURE0 + unit));
+  GL(glBindTexture(GL_TEXTURE_1D, texture.getId()));
+  GL(glUniform1i(id, unit));
+}
+
+void GLProgram::setTexture(GLint id, const GLTexture2D& texture, GLuint unit) const {
+	GL(glActiveTexture(GL_TEXTURE0 + unit));
+	GL(glBindTexture(GL_TEXTURE_2D, texture.getId()));
+	GL(glUniform1i(id, unit));
+}
+
+void GLProgram::setTexture(GLint id, const GLTexture3D& texture, GLuint unit) const {
+  GL(glActiveTexture(GL_TEXTURE0 + unit));
+  GL(glBindTexture(GL_TEXTURE_3D, texture.getId()));
+  GL(glUniform1i(id, unit));
+}
+
+void GLProgram::unsetTexture1D(GLuint unit) const {
+  GL(glActiveTexture(GL_TEXTURE0 + unit));
+  GL(glBindTexture(GL_TEXTURE_1D, 0));
+}
+
+void GLProgram::unsetTexture2D(GLuint unit) const {
+  GL(glActiveTexture(GL_TEXTURE0 + unit));
+  GL(glBindTexture(GL_TEXTURE_2D, 0));
+}
+
+void GLProgram::unsetTexture3D(GLuint unit) const {
+  GL(glActiveTexture(GL_TEXTURE0 + unit));
+  GL(glBindTexture(GL_TEXTURE_3D, 0));
 }
 
 void GLProgram::checkAndThrow() {
 	GLenum e = glGetError();
 	if (e != GL_NO_ERROR) {
 		std::stringstream s;
-		s << "An openGL error occured:" << e;
+		s << "An openGL error occured:" << errorString(e);
 		throw ProgramException{s.str()};
 	}	
 }
@@ -186,3 +212,75 @@ void GLProgram::checkAndThrowProgram(GLuint program) {
 		throw ProgramException{str};
 	}		
 }
+
+void GLProgram::programFromVectors(std::vector<std::string> vs, std::vector<std::string> fs, std::vector<std::string> gs) {
+  vertexShaderStrings   = vs;
+  fragmentShaderStrings = fs;
+  geometryShaderStrings = gs;
+
+  std::vector<const GLchar*> vertexShaderTexts;
+  for (const std::string& s : vertexShaderStrings)
+   vertexShaderTexts.push_back(s.c_str());
+
+  std::vector<const GLchar*> fragmentShaderTexts;
+  for (const std::string& s : fragmentShaderStrings)
+   fragmentShaderTexts.push_back(s.c_str());
+   
+  std::vector<const GLchar*> geometryShaderTexts;
+  for (const std::string& s : geometryShaderStrings)
+   if (!s.empty())
+     geometryShaderTexts.push_back(s.c_str());
+
+  glVertexShader = createShader(GL_VERTEX_SHADER, vertexShaderTexts.data(), GLsizei(vertexShaderTexts.size()));
+  glFragmentShader = createShader(GL_FRAGMENT_SHADER, fragmentShaderTexts.data(), GLsizei(fragmentShaderTexts.size()));
+  glGeometryShader = createShader(GL_GEOMETRY_SHADER, geometryShaderTexts.data(), GLsizei(geometryShaderTexts.size()));
+
+  glProgram = glCreateProgram(); checkAndThrow();
+  if (glVertexShader) {glAttachShader(glProgram, glVertexShader); checkAndThrow();}
+  if (glFragmentShader) {glAttachShader(glProgram, glFragmentShader); checkAndThrow();}
+  if (glGeometryShader) {glAttachShader(glProgram, glGeometryShader); checkAndThrow();}
+  glLinkProgram(glProgram); checkAndThrowProgram(glProgram);
+}
+
+
+void GLProgram::setUniform(const std::string& id, float value) const {
+  setUniform(getUniformLocation(id), value);
+}
+
+void GLProgram::setUniform(const std::string& id, const Vec2& value) const {
+  setUniform(getUniformLocation(id), value);
+}
+
+void GLProgram::setUniform(const std::string& id, const Vec3& value) const {
+  setUniform(getUniformLocation(id), value);
+}
+
+void GLProgram::setUniform(const std::string& id, const Vec4& value) const {
+  setUniform(getUniformLocation(id), value);
+}
+
+void GLProgram::setUniform(const std::string& id, int value) const {
+  setUniform(getUniformLocation(id), value);
+}
+
+void GLProgram::setUniform(const std::string& id, const Vec2i& value) const {
+  setUniform(getUniformLocation(id), value);
+}
+
+void GLProgram::setUniform(const std::string& id, const Mat4& value, bool transpose) const {
+  setUniform(getUniformLocation(id), value, transpose);
+}
+
+
+void GLProgram::setTexture(const std::string& id, const GLTexture1D& texture, GLuint unit) const {
+  setTexture(getUniformLocation(id), texture, unit);
+}
+
+void GLProgram::setTexture(const std::string& id, const GLTexture2D& texture, GLuint unit) const {
+  setTexture(getUniformLocation(id), texture, unit);
+}
+
+void GLProgram::setTexture(const std::string& id, const GLTexture3D& texture, GLuint unit) const {
+  setTexture(getUniformLocation(id), texture, unit);
+}
+
